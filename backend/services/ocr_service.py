@@ -1,13 +1,17 @@
-import easyocr
+from paddleocr import PaddleOCR
 import cv2
-import numpy as np
 
 # Initialize OCR
-reader = easyocr.Reader(['en'])
+ocr = PaddleOCR(
+    use_angle_cls=True,
+    lang='en'
+)
 
-def preprocess_image(image):
+def preprocess_image(image_path):
 
-    # Resize for better OCR
+    image = cv2.imread(image_path)
+
+    # Resize
     image = cv2.resize(
         image,
         None,
@@ -16,94 +20,44 @@ def preprocess_image(image):
         interpolation=cv2.INTER_CUBIC
     )
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Blur for cleaner thresholding
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Threshold
-    thresh = cv2.threshold(
-        blurred,
-        200,
-        255,
-        cv2.THRESH_BINARY
-    )[1]
-
-    return thresh
-
-def detect_speech_bubbles(image):
-
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    thresh = cv2.threshold(
-        gray,
-        200,
-        255,
-        cv2.THRESH_BINARY
-    )[1]
-
-    contours, _ = cv2.findContours(
-        thresh,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
+    # Grayscale
+    gray = cv2.cvtColor(
+        image,
+        cv2.COLOR_BGR2GRAY
     )
 
-    bubbles = []
+    # Threshold
+    processed = cv2.adaptiveThreshold(
+        gray,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        11,
+        2
+    )
 
-    for contour in contours:
-
-        x, y, w, h = cv2.boundingRect(contour)
-
-        area = w * h
-
-        # Ignore tiny regions
-        if area < 5000:
-            continue
-
-        # Ignore overly huge regions
-        if area > 300000:
-            continue
-
-        bubbles.append((x, y, w, h))
-
-    return bubbles
-
-def clean_text(text):
-
-    text = text.strip()
-
-    if len(text) < 2:
-        return None
-
-    return text
+    return processed
 
 def extract_text(image_path):
 
-    image = cv2.imread(image_path)
+    processed = preprocess_image(image_path)
 
-    bubbles = detect_speech_bubbles(image)
+    result = ocr.ocr(processed, cls=True)
 
     extracted_text = []
 
-    for (x, y, w, h) in bubbles:
+    if result and result[0]:
 
-        bubble_crop = image[y:y+h, x:x+w]
+        for line in result[0]:
 
-        processed = preprocess_image(bubble_crop)
+            text = line[1][0]
+            confidence = line[1][1]
 
-        results = reader.readtext(processed)
-
-        for result in results:
-
-            text = result[1]
-            confidence = result[2]
-
-            cleaned_text = clean_text(text)
-
-            if cleaned_text and confidence > 0.40:
+            # Filter weak garbage
+            if confidence > 0.50 and len(text.strip()) > 1:
 
                 extracted_text.append({
-                    "text": cleaned_text,
+                    "text": text,
                     "confidence": round(confidence, 2)
                 })
 
