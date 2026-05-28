@@ -7,14 +7,14 @@ export default function Home() {
 
       <Navbar />
 
-      <section className="flex flex-col items-center justify-center py-20">
+      <section className="px-6 py-20 flex flex-col items-center">
 
-        <h1 className="text-6xl font-bold mb-6 text-center">
+        <h1 className="text-6xl md:text-7xl font-bold text-center mb-6">
           AI Motion Comic Generator
         </h1>
 
-        <p className="text-gray-400 text-xl text-center max-w-2xl mb-12">
-          Upload comic panels and transform them into cinematic motion comics using AI.
+        <p className="text-gray-400 text-center text-xl max-w-3xl mb-16">
+          Transform manga and manhwa panels into cinematic motion comics using AI-powered narration, animation, and storytelling.
         </p>
 
         <UploadPanel />

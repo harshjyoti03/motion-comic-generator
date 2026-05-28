@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List
+from services.ocr_service import extract_text
+
 import shutil
 import os
 
@@ -22,20 +23,31 @@ def home():
     return {"message": "Motion Comic API Running"}
 
 @app.post("/upload")
-async def upload_images(files: List[UploadFile] = File(...)):
+async def upload_images(
+    files: list[UploadFile] = File(...)
+):
 
-    uploaded_files = []
+    uploaded_results = []
 
     for file in files:
 
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file_path = os.path.join(
+            UPLOAD_FOLDER,
+            file.filename
+        )
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        uploaded_files.append(file.filename)
+        # OCR extraction
+        extracted_text = extract_text(file_path)
+
+        uploaded_results.append({
+            "filename": file.filename,
+            "ocr_text": extracted_text
+        })
 
     return {
-        "uploaded_files": uploaded_files,
-        "status": "uploaded successfully"
+        "results": uploaded_results,
+        "status": "success"
     }
